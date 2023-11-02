@@ -1,0 +1,1 @@
+forge script script/KayRouter02.s.sol:KayRouter02Script --rpc-url $MAINNET_RPC_URL --broadcast -vvvv

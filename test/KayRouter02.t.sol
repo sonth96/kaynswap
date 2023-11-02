@@ -1,0 +1,37 @@
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity ^0.6.0;
+pragma experimental ABIEncoderV2;
+
+import {Test, console2} from "forge-std/Test.sol";
+import {KayRouter02} from "../src/KayRouter02.sol";
+import {IKIP7} from "../src/interfaces/IKIP7.sol";
+
+contract SwapTest is Test {
+    uint256 kayMainnetCypressFork;
+    string MAINNET_RPC_URL = vm.envString("MAINNET_RPC_URL");
+    KayRouter02 public router;
+    IKIP7 oUsdt;
+    IKIP7 oXrp;
+
+    function setUp() public {
+        kayMainnetCypressFork = vm.createFork(MAINNET_RPC_URL);
+        vm.selectFork(kayMainnetCypressFork);
+        router = new KayRouter02();
+        oUsdt = IKIP7(0x754288077D0fF82AF7a5317C7CB8c444D421d103);
+        oXrp = IKIP7(0x9eaeFb09fe4aABFbE6b1ca316a3c36aFC83A393F);
+    }
+
+    function test_swap() public {
+        uint256 amount = 1 * 10 ** uint256(oUsdt.decimals());
+
+        // Sets the *next* call's msg.sender to be the input address
+        // aka use this real address on mainnet as the one who calls these following functions
+        vm.prank(address(0x595A94Eb3CceB88c067a4F6CceE4212Ea277313b));
+
+        oUsdt.approve(address(router), amount);
+
+        vm.prank(address(0x595A94Eb3CceB88c067a4F6CceE4212Ea277313b));
+
+        router.swapExactToken(address(oUsdt), address(oXrp), amount);
+    }
+}
