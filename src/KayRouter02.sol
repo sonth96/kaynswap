@@ -4,6 +4,7 @@ pragma experimental ABIEncoderV2;
 
 import "./interfaces/IKLAYSwap.sol";
 import "./interfaces/IKIP7.sol";
+import "./interfaces/IKSLPool.sol";
 import "./SafeMath.sol";
 
 contract KayRouter02 {
@@ -14,8 +15,17 @@ contract KayRouter02 {
 
     constructor() public {}
 
+    modifier ensure(uint deadline) {
+        require(deadline >= block.timestamp, "KayRouter02: EXPIRED");
+        _;
+    }
+
     ///@dev swap Kayn to any token
-    function swapExactKay(address token, uint256 amount) public {
+    function swapExactKay(
+        address token,
+        uint256 amount,
+        uint256 deadline
+    ) public ensure(deadline) {
         require(amount != 0);
         IKLAYSwap(uniRouterAddress).exchangeKlayPos{value: amount}(
             token,
@@ -28,33 +38,40 @@ contract KayRouter02 {
     function swapExactToken(
         address tokenA,
         address tokenB,
-        uint256 amount
-    ) public {
-        require(amount != 0);
+        uint256 amountIn,
+        uint256 amountOutMin, // slippage included
+        uint256 deadline
+    ) public ensure(deadline) {
+        require(amountIn != 0);
         // Call approve on ui first
-        tranferFrom(tokenA, msg.sender, address(this), amount);
-        increaseApproval(tokenA, uniRouterAddress, amount);
+        tranferFrom(tokenA, msg.sender, address(this), amountIn);
+        increaseApproval(tokenA, uniRouterAddress, amountIn);
         address pool = IKLAYSwap(uniRouterAddress).tokenToPool(tokenA, tokenB);
 
-        if (pool == address(0)) {
-            address[] memory path = new address[](1);
-            path[0] = tokenB;
-            IKLAYSwap(uniRouterAddress).exchangeKctNeg(
-                tokenA,
-                amount,
-                address(0),
-                1,
-                path
-            );
-        } else {
-            IKLAYSwap(uniRouterAddress).exchangeKctPos(
-                tokenA,
-                amount,
-                tokenB,
-                1,
-                new address[](0)
-            );
-        }
+        require(pool != address(0), "KayRouter02: POOL_NOT_FOUND");
+        uint256 estimatedB = IKSLPool(pool).estimatePos(tokenA, amountIn);
+        require(
+            estimatedB >= amountOutMin,
+            "KayRouter02: INSUFFICIENT_OUTPUT_AMOUNT"
+        );
+        IKLAYSwap(uniRouterAddress).exchangeKctPos(
+            tokenA,
+            amountIn,
+            tokenB,
+            estimatedB,
+            new address[](0)
+        );
+    }
+
+    function estimatePos(
+        address tokenA,
+        address tokenB,
+        uint256 amountIn
+    ) public view returns (uint) {
+        address pool = IKLAYSwap(uniRouterAddress).tokenToPool(tokenA, tokenB);
+
+        require(pool != address(0), "KayRouter02: POOL_NOT_FOUND");
+        return IKSLPool(pool).estimatePos(tokenA, amountIn);
     }
 
     function increaseApproval(address token, address to, uint amount) private {
