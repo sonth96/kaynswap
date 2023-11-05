@@ -61,6 +61,7 @@ contract KayRouter02 {
             estimatedB,
             new address[](0)
         );
+        IKIP7(tokenB).transfer(msg.sender,estimatedB);
     }
 
     function estimatePos(
