@@ -1,0 +1,1 @@
+node ./dist/index.js tokenA 0x9eaeFb09fe4aABFbE6b1ca316a3c36aFC83A393F tokenB 0x754288077D0fF82AF7a5317C7CB8c444D421d103 amount 0.25
