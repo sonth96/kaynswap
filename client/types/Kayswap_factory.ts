@@ -27,6 +27,7 @@ export interface Kayswap_factoryInterface extends Interface {
   getFunction(
     nameOrSignature:
       | "estimatePos"
+      | "exchangeKlayPos"
       | "exchangeKctPos"
       | "name"
       | "totalSupply"
@@ -59,6 +60,10 @@ export interface Kayswap_factoryInterface extends Interface {
   encodeFunctionData(
     functionFragment: "estimatePos",
     values: [AddressLike, AddressLike, BigNumberish]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "exchangeKlayPos",
+    values: [AddressLike, BigNumberish, AddressLike[]]
   ): string;
   encodeFunctionData(
     functionFragment: "exchangeKctPos",
@@ -139,6 +144,10 @@ export interface Kayswap_factoryInterface extends Interface {
 
   decodeFunctionResult(
     functionFragment: "estimatePos",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "exchangeKlayPos",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -286,6 +295,12 @@ export interface Kayswap_factory extends BaseContract {
     "view"
   >;
 
+  exchangeKlayPos: TypedContractMethod<
+    [tokenOut: AddressLike, amountOut: BigNumberish, path: AddressLike[]],
+    [bigint],
+    "payable"
+  >;
+
   exchangeKctPos: TypedContractMethod<
     [
       tokenA: AddressLike,
@@ -372,6 +387,13 @@ export interface Kayswap_factory extends BaseContract {
     [tokenA: AddressLike, tokenB: AddressLike, amount: BigNumberish],
     [bigint],
     "view"
+  >;
+  getFunction(
+    nameOrSignature: "exchangeKlayPos"
+  ): TypedContractMethod<
+    [tokenOut: AddressLike, amountOut: BigNumberish, path: AddressLike[]],
+    [bigint],
+    "payable"
   >;
   getFunction(
     nameOrSignature: "exchangeKctPos"

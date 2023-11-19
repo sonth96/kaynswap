@@ -37,6 +37,33 @@ const _abi = [
         constant: false,
         inputs: [
             {
+                name: "tokenOut",
+                type: "address",
+            },
+            {
+                name: "amountOut",
+                type: "uint256",
+            },
+            {
+                name: "path",
+                type: "address[]",
+            },
+        ],
+        name: "exchangeKlayPos",
+        outputs: [
+            {
+                name: "",
+                type: "uint256",
+            },
+        ],
+        payable: true,
+        stateMutability: "payable",
+        type: "function",
+    },
+    {
+        constant: false,
+        inputs: [
+            {
                 name: "tokenA",
                 type: "address",
             },

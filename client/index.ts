@@ -63,47 +63,82 @@ async function swap(
       provider
     ) as BaseContract as Kayswap_factory;
 
-    const allowaneA = await tokenA.allowance(
-      signer.address,
-      kayswapFactoryAddress
-    );
-    const decimalA = await tokenA.decimals();
-    const decimalB = await tokenB.decimals();
-    const amountASwap = BigInt(amountA * Math.pow(10, Number(decimalA)));
+    /// KAYN
+    if (tokenAAddress === ZeroAddress) {
+      const amountASwap = BigInt(amountA * Math.pow(10, Number(18)));
+      const pool = await KayswapFactory.tokenToPool(
+        tokenAAddress,
+        tokenBAddress
+      );
+      if (pool === ZeroAddress) return;
+      const KayswapPool = new ethers.Contract(
+        pool,
+        KayswapPoolAbi,
+        provider
+      ) as BaseContract as Kayswap_pool;
 
-    await tokenA
-      .connect(signer)
-      .approve(kayswapFactoryAddress, allowaneA + amountASwap);
+      const estimatedBOut = await KayswapPool.estimatePos(
+        tokenAAddress,
+        amountASwap
+      );
+      console.log({ tokenAAddress, tokenBAddress, amountASwap, estimatedBOut });
 
-    const pool = await KayswapFactory.tokenToPool(tokenAAddress, tokenBAddress);
-    console.log(pool);
-    if (pool === ZeroAddress) return;
+      const tx = await KayswapFactory.connect(signer).exchangeKlayPos(
+        tokenBAddress,
+        estimatedBOut,
+        [],
+        {
+          value: amountASwap,
+        }
+      );
+      console.log(
+        `Successfully swap ${tokenAAddress} to ${tokenBAddress} tx:${tx}`
+      );
+    } else {
+      const allowaneA = await tokenA.allowance(
+        signer.address,
+        kayswapFactoryAddress
+      );
+      const decimalA = await tokenA.decimals();
+      const decimalB = await tokenB.decimals();
+      const amountASwap = BigInt(amountA * Math.pow(10, Number(decimalA)));
 
-    const KayswapPool = new ethers.Contract(
-      pool,
-      KayswapPoolAbi,
-      provider
-    ) as BaseContract as Kayswap_pool;
+      await tokenA
+        .connect(signer)
+        .approve(kayswapFactoryAddress, allowaneA + amountASwap);
 
-    const estimatedBOut = await KayswapPool.estimatePos(
-      tokenAAddress,
-      amountASwap
-    );
-    console.log({ tokenAAddress, tokenBAddress, amountASwap, estimatedBOut });
+      const pool = await KayswapFactory.tokenToPool(
+        tokenAAddress,
+        tokenBAddress
+      );
+      console.log(pool);
+      if (pool === ZeroAddress) return;
 
-    await KayswapFactory.connect(signer).exchangeKctPos(
-      tokenAAddress,
-      amountASwap,
-      tokenBAddress,
-      estimatedBOut,
-      []
-    );
+      const KayswapPool = new ethers.Contract(
+        pool,
+        KayswapPoolAbi,
+        provider
+      ) as BaseContract as Kayswap_pool;
 
-    console.log(
-      `Successfully swap ${tokenAAddress} to ${
-        estimatedBOut / BigInt(10) ** decimalB
-      } ${tokenBAddress}`
-    );
+      const estimatedBOut = await KayswapPool.estimatePos(
+        tokenAAddress,
+        amountASwap
+      );
+      console.log({ tokenAAddress, tokenBAddress, amountASwap, estimatedBOut });
+
+      await KayswapFactory.connect(signer).exchangeKctPos(
+        tokenAAddress,
+        amountASwap,
+        tokenBAddress,
+        estimatedBOut,
+        []
+      );
+      console.log(
+        `Successfully swap ${tokenAAddress} to ${
+          estimatedBOut / BigInt(10) ** decimalB
+        } ${tokenBAddress}`
+      );
+    }
   } catch (error) {
     console.error(error);
   }
