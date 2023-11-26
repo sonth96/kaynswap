@@ -1,8 +1,8 @@
 import { BaseContract, ethers, ZeroAddress } from "ethers";
 import dotenv from "dotenv";
-import ERC20Abi from "./abi/erc20.json";
-import KayswapFactoryAbi from "./abi/kayswap_factory.json";
-import KayswapPoolAbi from "./abi/kayswap_pool.json";
+import ERC20Abi from "./abi/kayswap/erc20.json";
+import KayswapFactoryAbi from "./abi/kayswap/kayswap_factory.json";
+import KayswapPoolAbi from "./abi/kayswap/kayswap_pool.json";
 import { Erc20, Kayswap_factory, Kayswap_pool } from "./types";
 dotenv.config();
 
@@ -26,21 +26,15 @@ async function main() {
   }
   await swap(tokenA, tokenB, amount);
 }
-function generateFunctionSignature(functionSignature: string) {
-  const functionSignatureHash = ethers.id(functionSignature).slice(0, 10);
 
-  // output results
-  console.log(`Function: ${functionSignature}`);
-  console.log(`Function signature: ${functionSignatureHash}`);
-
-  return functionSignatureHash;
-}
 async function swap(
   tokenAAddress: string,
   tokenBAddress: string,
   amountA: number
 ) {
-  const provider = new ethers.JsonRpcProvider(process.env.MAINNET_RPC_URL);
+  const provider = new ethers.JsonRpcProvider(
+    process.env.KAYTN_MAINNET_RPC_URL
+  );
   const signer = new ethers.Wallet(process.env.PRIVATE_KEY!, provider);
   const tokenA = new ethers.Contract(
     tokenAAddress,
