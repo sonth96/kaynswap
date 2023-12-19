@@ -1,9 +1,26 @@
-import { BaseContract, ethers, ZeroAddress } from "ethers";
+import { ethers } from "ethers";
 import dotenv from "dotenv";
-import ERC20Abi from "./abi/erc20/erc20.json";
-import SmartRouterAbi from "./abi/pancake/smart_router.json";
-import { Erc20, Smart_router } from "./types";
-import { IV3SwapRouter } from "./types/pancake/Smart_router";
+import { createPublicClient, hexToBigInt, http } from "viem";
+
+import { erc20ABI, mainnet } from "@wagmi/core";
+import {
+  SMART_ROUTER_ADDRESSES,
+  SmartRouter,
+  SwapRouter,
+} from "@pancakeswap/smart-router";
+import { GraphQLClient } from "graphql-request";
+import {
+  ChainId,
+  CurrencyAmount,
+  Native,
+  Percent,
+  TradeType,
+} from "@pancakeswap/sdk";
+import { bscTokens } from "@pancakeswap/tokens";
+import { publicProvider } from "@wagmi/core/providers/public";
+import { Contract } from "ethers";
+import { Erc20 } from "./types/Erc20.js";
+import { BaseContract } from "ethers";
 dotenv.config();
 
 async function main() {
@@ -16,8 +33,8 @@ async function main() {
     return;
   }
 
-  const tokenA = args[tokenAIndex + 1];
-  const tokenB = args[tokenBIndex + 1];
+  const tokenA = args[tokenAIndex + 1] as keyof typeof bscTokens;
+  const tokenB = args[tokenBIndex + 1] as keyof typeof bscTokens;
   const amount = Number(args[amountIndex + 1]);
 
   if (amount <= 0) {
@@ -28,76 +45,130 @@ async function main() {
 }
 
 async function swap(
-  tokenAAddress: string,
-  tokenBAddress: string,
+  tokenASlug: keyof typeof bscTokens | "native",
+  tokenBSlug: keyof typeof bscTokens | "native",
   amountA: number
 ) {
   const provider = new ethers.JsonRpcProvider(process.env.BSC_MAINNET_RPC_URL);
   const signer = new ethers.Wallet(process.env.PRIVATE_KEY!, provider);
-  const tokenA = new ethers.Contract(
-    tokenAAddress,
-    ERC20Abi,
-    provider
-  ) as BaseContract as Erc20;
 
-  const pancakeSmartRouterBSCAddress =
-    "0x13f4ea83d0bd40e75c8222255bc855a974568dd4";
+  const bal = await provider.getBalance(signer.address);
+  console.log("User balance " + bal.toString());
+  const chainId = ChainId.BSC;
 
-  try {
-    const smartRouter = new ethers.Contract(
-      pancakeSmartRouterBSCAddress,
-      SmartRouterAbi,
-      provider
-    ) as BaseContract as Smart_router;
+  const swapFrom =
+    tokenASlug === "native" ? Native.onChain(chainId) : bscTokens[tokenASlug];
+  const swapTo =
+    tokenBSlug === "native" ? Native.onChain(chainId) : bscTokens[tokenBSlug];
+  const amount = CurrencyAmount.fromRawAmount(swapFrom, amountA * 10 ** 18);
 
-    /// Native token
-    let WBNB = "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c";
-    if (tokenAAddress === WBNB) {
-      const amountASwap = BigInt(amountA * Math.pow(10, Number(18)));
-      const tx = await smartRouter.connect(signer).exactInputSingle(
-        {
-          tokenIn: tokenAAddress,
-          tokenOut: tokenBAddress,
-          fee: BigInt(0),
-          recipient: signer.address,
-          amountIn: amountA,
-          amountOutMinimum: BigInt(0),
-          sqrtPriceLimitX96: BigInt(0),
-        } as IV3SwapRouter.ExactInputSingleParamsStruct,
-        {
-          value: amountASwap,
-        }
-      );
+  const publicClient = createPublicClient({
+    chain: mainnet,
+    transport: http(process.env.BSC_MAINNET_RPC_URL),
+    batch: {
+      multicall: {
+        batchSize: 1024 * 200,
+      },
+    },
+  });
 
-      console.log({ tokenAAddress, tokenBAddress, amountASwap });
+  const v3SubgraphClient = new GraphQLClient(
+    "https://api.thegraph.com/subgraphs/name/pancakeswap/exchange-v3-bsc"
+  );
+  const v2SubgraphClient = new GraphQLClient(
+    "https://proxy-worker-api.pancakeswap.com/bsc-exchange"
+  );
 
-      console.log(
-        `Successfully swap ${tokenAAddress} to ${tokenBAddress} tx:${tx}`
-      );
-    } else {
-      const allowaneA = await tokenA.allowance(
-        signer.address,
-        pancakeSmartRouterBSCAddress
-      );
-      const decimalA = await tokenA.decimals();
-      const amountASwap = BigInt(amountA * Math.pow(10, Number(decimalA)));
+  const quoteProvider = SmartRouter.createQuoteProvider({
+    onChainProvider: () => publicClient as any,
+  });
 
-      await tokenA
-        .connect(signer)
-        .approve(pancakeSmartRouterBSCAddress, allowaneA + amountASwap);
-
-      const tx = await smartRouter.connect(signer).exactInputSingle({
-        tokenIn: tokenAAddress,
-        tokenOut: tokenBAddress,
-        fee: BigInt(0),
-        recipient: signer.address,
-        amountIn: amountA,
-        amountOutMinimum: BigInt(0),
-        sqrtPriceLimitX96: BigInt(0),
-      } as IV3SwapRouter.ExactInputSingleParamsStruct);
+  const [v2Pools, v3Pools] = await Promise.all([
+    SmartRouter.getV2CandidatePools({
+      onChainProvider: () => publicClient as any,
+      v2SubgraphProvider: () => v2SubgraphClient as any,
+      v3SubgraphProvider: () => v3SubgraphClient as any,
+      currencyA: amount.currency,
+      currencyB: swapTo,
+    }),
+    SmartRouter.getV3CandidatePools({
+      onChainProvider: () => publicClient as any,
+      subgraphProvider: () => v3SubgraphClient as any,
+      currencyA: amount.currency,
+      currencyB: swapTo,
+    }),
+  ]);
+  const pools = [...v2Pools, ...v3Pools];
+  const trade = await SmartRouter.getBestTrade(
+    amount,
+    swapTo,
+    TradeType.EXACT_INPUT,
+    {
+      gasPriceWei: () => publicClient.getGasPrice(),
+      maxHops: 2,
+      maxSplits: 2,
+      poolProvider: SmartRouter.createStaticPoolProvider(pools),
+      quoteProvider,
+      quoterOptimization: true,
     }
-  } catch (error) {
-    console.error(error);
+  );
+
+  if (!trade) {
+    return null;
   }
+  const { value: val, calldata: cData } = SwapRouter.swapCallParameters(trade, {
+    recipient: signer.address as any,
+    slippageTolerance: new Percent(1),
+  });
+
+  const swapCallParams = {
+    address: SMART_ROUTER_ADDRESSES[chainId],
+    calldata: cData,
+    value: val,
+  };
+
+  if (!swapCallParams || !signer.address) {
+    return;
+  }
+
+  const { value, calldata, address: routerAddress } = swapCallParams;
+
+  function calculateGasMargin(value: bigint, margin = 1000n): bigint {
+    return (value * (10000n + margin)) / 10000n;
+  }
+
+  if (swapFrom.isToken) {
+    const swapFromERC20: Erc20 = new Contract(
+      swapFrom.address,
+      erc20ABI,
+      provider
+    ) as BaseContract as Erc20;
+
+    const allowance = await swapFromERC20.allowance(
+      signer.address,
+      routerAddress
+    );
+    if (allowance >= BigInt(amountA * 10 ** 18)) {
+      const tx = await swapFromERC20
+        .connect(signer)
+        .approve(routerAddress, BigInt(amountA * 10 ** 18));
+      console.log({ tx });
+    }
+  }
+
+  const tx = {
+    account: signer.address as any,
+    to: routerAddress,
+    data: calldata,
+    value: hexToBigInt(value),
+  };
+  const gasEstimate = await publicClient.estimateGas(tx);
+  await signer.sendTransaction({
+    from: signer.address,
+    to: routerAddress,
+    data: calldata,
+    value: hexToBigInt(value),
+    gasLimit: calculateGasMargin(gasEstimate),
+  });
 }
 main();

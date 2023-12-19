@@ -23,11 +23,13 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.Kayswap_pool__factory = exports.Kayswap_factory__factory = exports.Erc20__factory = exports.factories = void 0;
+exports.Smart_router__factory = exports.Kayswap_pool__factory = exports.Kayswap_factory__factory = exports.Erc20__factory = exports.factories = void 0;
 exports.factories = __importStar(require("./factories"));
-var Erc20__factory_1 = require("./factories/Erc20__factory");
+var Erc20__factory_1 = require("./factories/kayswap/Erc20__factory");
 Object.defineProperty(exports, "Erc20__factory", { enumerable: true, get: function () { return Erc20__factory_1.Erc20__factory; } });
-var Kayswap_factory__factory_1 = require("./factories/Kayswap_factory__factory");
+var Kayswap_factory__factory_1 = require("./factories/kayswap/Kayswap_factory__factory");
 Object.defineProperty(exports, "Kayswap_factory__factory", { enumerable: true, get: function () { return Kayswap_factory__factory_1.Kayswap_factory__factory; } });
-var Kayswap_pool__factory_1 = require("./factories/Kayswap_pool__factory");
+var Kayswap_pool__factory_1 = require("./factories/kayswap/Kayswap_pool__factory");
 Object.defineProperty(exports, "Kayswap_pool__factory", { enumerable: true, get: function () { return Kayswap_pool__factory_1.Kayswap_pool__factory; } });
+var Smart_router__factory_1 = require("./factories/pancake/Smart_router__factory");
+Object.defineProperty(exports, "Smart_router__factory", { enumerable: true, get: function () { return Smart_router__factory_1.Smart_router__factory; } });
