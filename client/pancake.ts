@@ -17,7 +17,6 @@ import {
   TradeType,
 } from "@pancakeswap/sdk";
 import { bscTokens } from "@pancakeswap/tokens";
-import { publicProvider } from "@wagmi/core/providers/public";
 import { Contract } from "ethers";
 import { Erc20 } from "./types/Erc20.js";
 import { BaseContract } from "ethers";
@@ -60,7 +59,10 @@ async function swap(
     tokenASlug === "native" ? Native.onChain(chainId) : bscTokens[tokenASlug];
   const swapTo =
     tokenBSlug === "native" ? Native.onChain(chainId) : bscTokens[tokenBSlug];
-  const amount = CurrencyAmount.fromRawAmount(swapFrom, amountA * 10 ** 18);
+  const amount = CurrencyAmount.fromRawAmount(
+    swapFrom,
+    amountA * 10 ** swapFrom.decimals
+  );
 
   const publicClient = createPublicClient({
     chain: mainnet,
@@ -148,10 +150,10 @@ async function swap(
       signer.address,
       routerAddress
     );
-    if (allowance >= BigInt(amountA * 10 ** 18)) {
+    if (allowance >= BigInt(amountA * 10 ** swapFrom.decimals)) {
       const tx = await swapFromERC20
         .connect(signer)
-        .approve(routerAddress, BigInt(amountA * 10 ** 18));
+        .approve(routerAddress, BigInt(amountA * 10 ** swapFrom.decimals));
       console.log({ tx });
     }
   }

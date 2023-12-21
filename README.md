@@ -49,7 +49,9 @@ pancake_native => when you want to swap from BNB -> aToken or in reversed with t
 
 pancake => when you want to swap from aToken -> bToken ( not BNB, but WBNB is okay)
 
+uniswap => when you want to swap from aToken -> bToken ( not BNB, but WBNB is okay)
 
+- pancake and uniswap currently support BNB chain only
 
 
 ### Improvements
