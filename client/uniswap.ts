@@ -2,9 +2,9 @@ import { BaseContract, ethers } from "ethers";
 import { ethers as ethers5 } from "ethers-v5";
 import dotenv from "dotenv";
 
-import { erc20ABI } from "@wagmi/core";
+import { Chain, erc20ABI } from "@wagmi/core";
 
-import { bscTokens } from "@pancakeswap/tokens";
+import { bscTokens, ethereumTokens } from "@pancakeswap/tokens";
 import { Contract } from "ethers";
 import { Erc20 } from "./types/Erc20.js";
 import {
@@ -17,6 +17,7 @@ import {
 import { DEADLINE, SWAP_ROUTER_ADDRESS } from "./configs";
 import { ChainId, Percent, TradeType } from "@uniswap/sdk-core";
 import { Native } from "@pancakeswap/sdk";
+import { getRpcUrlByChainId, getTokenByChainId } from "./untils/index.js";
 dotenv.config();
 
 async function main() {
@@ -24,41 +25,45 @@ async function main() {
   const tokenAIndex = args.indexOf("tokenA");
   const tokenBIndex = args.indexOf("tokenB");
   const amountIndex = args.indexOf("amount");
-  if (tokenAIndex < 0 || tokenBIndex < 0 || amountIndex < 0) {
+  const chainId = args.indexOf("chainId") as ChainId;
+  if (tokenAIndex < 0 || tokenBIndex < 0 || amountIndex < 0 || chainId < 0) {
     console.log("Please provide swap arguments");
     return;
   }
 
-  const tokenA = args[tokenAIndex + 1] as keyof typeof bscTokens;
-  const tokenB = args[tokenBIndex + 1] as keyof typeof bscTokens;
+  const tokenA = args[tokenAIndex + 1] as keyof typeof bscTokens | keyof typeof ethereumTokens;
+  const tokenB = args[tokenBIndex + 1] as keyof typeof bscTokens | keyof typeof ethereumTokens;
   const amount = Number(args[amountIndex + 1]);
 
   if (amount <= 0) {
     console.log("Amount > 0");
     return;
   }
-  await swap(tokenA, tokenB, amount);
+  await swap(tokenA, tokenB, chainId, amount);
 }
 
 async function swap(
-  tokenASlug: keyof typeof bscTokens | "native",
-  tokenBSlug: keyof typeof bscTokens | "native",
+  tokenASlug: keyof typeof bscTokens | keyof typeof ethereumTokens | "native",
+  tokenBSlug: keyof typeof bscTokens | keyof typeof ethereumTokens | "native",
+  chainId: ChainId,
   amountA: number
 ) {
-  const provider = new ethers.JsonRpcProvider(process.env.BSC_MAINNET_RPC_URL);
+  const rpcUrl = getRpcUrlByChainId(chainId);
+  const provider = new ethers.JsonRpcProvider(rpcUrl);
   const providerV5 = new ethers5.providers.JsonRpcProvider(
-    process.env.BSC_MAINNET_RPC_URL
+    rpcUrl
   );
   const signer = new ethers.Wallet(process.env.PRIVATE_KEY!, provider);
 
   const bal = await provider.getBalance(signer.address);
   console.log("User balance " + bal.toString());
-  const chainId = ChainId.BNB;
 
-  const swapFrom =
-    tokenASlug === "native" ? Native.onChain(chainId) : bscTokens[tokenASlug];
-  const swapTo =
-    tokenBSlug === "native" ? Native.onChain(chainId) : bscTokens[tokenBSlug];
+  const swapFrom = getTokenByChainId(chainId, tokenASlug);
+  const swapTo = getTokenByChainId(chainId, tokenBSlug);
+
+  if (swapFrom === undefined || swapTo === undefined) {
+    return;
+  }
 
   const amountIn = CurrencyAmount.fromRawAmount(
     swapFrom,
@@ -97,13 +102,13 @@ async function swap(
 
     const allowance = await swapFromERC20.allowance(
       signer.address,
-      SWAP_ROUTER_ADDRESS[chainId]
+      SWAP_ROUTER_ADDRESS[chainId as 1 | 56]
     );
     if (allowance >= BigInt(amountA * 10 ** swapFrom.decimals)) {
       const tx = await swapFromERC20
         .connect(signer)
         .approve(
-          SWAP_ROUTER_ADDRESS[chainId],
+          SWAP_ROUTER_ADDRESS[chainId as 1 | 56],
           BigInt(amountA * 10 ** swapFrom.decimals)
         );
       console.log({ tx });
@@ -127,7 +132,7 @@ async function swap(
 
   const swapTransaction = buildSwapTransaction(
     signer.address,
-    SWAP_ROUTER_ADDRESS[chainId],
+    SWAP_ROUTER_ADDRESS[chainId as 1 | 56],
     route
   );
 
