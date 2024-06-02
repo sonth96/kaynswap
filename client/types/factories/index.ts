@@ -2,4 +2,6 @@
 /* tslint:disable */
 /* eslint-disable */
 export * as kayswap from "./kayswap";
+export * as merlinswap from "./merlinswap";
 export * as pancake from "./pancake";
+export { Erc20__factory } from "./Erc20__factory";

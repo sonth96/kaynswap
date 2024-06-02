@@ -31,6 +31,7 @@
     "pancake_native": "tsx pancake.ts tokenA native tokenB usdt amount 0.001",
     "pancake": "tsx pancake.ts tokenA usdt tokenB cake amount 0.01",
     "uniswap_native": "tsx uniswap.ts tokenA native tokenB cake amount 0.01",
-    "uniswap": "tsx uniswap.ts tokenA usdt tokenB cake amount 0.01"
+    "uniswap": "tsx uniswap.ts tokenA usdt tokenB cake amount 0.01",
+    "merlinswap": "tsx merlinswap.ts tokenA 0xF6D226f9Dc15d9bB51182815b320D3fBE324e1bA tokenB 0x5c46bFF4B38dc1EAE09C5BAc65872a1D8bc87378 amount 0.00001 fee 0.3"
   }
 }

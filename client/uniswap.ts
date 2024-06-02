@@ -17,7 +17,7 @@ import {
 import { DEADLINE, SWAP_ROUTER_ADDRESS } from "./configs";
 import { ChainId, Percent, TradeType } from "@uniswap/sdk-core";
 import { Native } from "@pancakeswap/sdk";
-import { getRpcUrlByChainId, getTokenByChainId } from "./untils/index.js";
+import { getRpcUrlByChainId, getTokenByChainId } from "./utils/index.js";
 dotenv.config();
 
 async function main() {
